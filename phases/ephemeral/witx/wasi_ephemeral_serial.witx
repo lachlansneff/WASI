@@ -1,0 +1,123 @@
+;;; WASI Serial interace API
+;;;
+;;; This module draws inspiration from the in-progress WebSerial API.
+
+;;; Error codes returned by functions in this api. Prefixed to avoid name conflicts.
+(typename $serial_errno
+    (enum u16
+        ;;; No error.
+        $success
+        ;;; No matching serial port was found.
+        $no_port_found
+        ;;; Unable to open a port with those options.
+        $unable_to_open
+        ;;; Unable to write to serial port.
+        $unable_to_write
+        ;;; Unable to read from serial port.
+        $unable_to_read
+    )
+)
+
+(typename $filter_options
+    (struct
+        ;;; UINT_MAX (-1) to provide no vendor id.
+        (field $vendor_id u32)
+        ;;; UINT_MAX (-1) to provide no product id.
+        (field $product_id u32)
+    )
+)
+
+(typename $filter_options_list (array $filter_options))
+
+(typename $parity_type
+    (enum u8
+        ;;; No parity bit is sent for each data word.
+        $none
+        ;;; Data word plus parity bit has even parity.
+        $even
+        ;;; Data word plus parity bit has odd parity.
+        $odd
+        ;;; Parity bit has a mark symbol (logical one).
+        $mark
+        ;;; Parity bit has a space symbol (logical zero).
+        $space
+    )
+)
+
+(typename $flow_control
+    (enum u8
+        ;; No flow control is enabled.
+        $none
+        ;; Hardware flow control using the RTS and CTS signals is enabled.
+        $hardware
+    )
+)
+
+(typename $open_options
+    (struct
+        ;;; Baud rate.
+        (field $baud_rate u32)
+        ;;; Must be 8, 7, 6, or 5.
+        (field $data_bits u8)
+        ;;; Must be either 1 or 2.
+        (field $stop_bits u8)
+        ;;; Parity type.
+        (field $parity $parity_type)
+        ;;; Buffer size.
+        (field $buffer_size u32)
+        ;;; Flow control mode.
+        (field $flow_control $flow_control)
+    )
+)
+
+;;; A serial port that must be openned before it can be written to and read from.
+(typename $unopened_serial_port (handle))
+;;; A serial port that can be written to and read from.
+(typename $serial_port (handle))
+
+(module $wasi_ephermeral_serial
+    ;;; Linear memory to be accessed by WASI functions that need it.
+    (import "memory" (memory))
+
+    ;;; Request a port that matches one of the provided filters.
+    (@interface func (export "request_port")
+        (param $filters $filter_options_list)
+
+        (result $error $serial_errno)
+        (result $unopened_port $unopened_serial_port)
+    )
+
+    (@interface func (export "open_port")
+        (param $unopened_port $unopened_serial_port)
+        (param $open_options $open_options)
+        
+        (result $error $serial_errno)
+        (result $port $serial_port)
+    )
+
+    ;;; TODO: Once we can return an arbitrary map, add a get metadata function.
+
+    ;;; Write to the supplied serial port.
+    (@interface func (export "write")
+        (param $port $serial_port)
+        ;;; A buffer in which data is supplied.
+        (param $data (@witx pointer u8))
+        ;;; Number of bytes supplied in buffer.
+        (param $size (@witx usize))
+
+        (result $error $serial_errno)
+        ;;; Number of bytes actually written to the serial port.
+        (result $bytes_written (@witx usize))
+    )
+
+    ;;; Read from the supplied serial port.
+    (@interface func (export "read")
+        (param $port $serial_port)
+        ;;; Buffer to write to.
+        (param $buffer (@witx pointer u8))
+        (param $buffer_size (@witx usize))
+
+        (result $error $serial_errno)
+        (result $bytes_read (@witx usize))
+    )
+)
