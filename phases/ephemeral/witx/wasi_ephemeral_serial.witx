@@ -3,7 +3,7 @@
 ;;; This module draws inspiration from the in-progress WebSerial API.
 
 ;;; Error codes returned by functions in this api. Prefixed to avoid name conflicts.
-(typename $serial_errno
+(typename $errno
     (enum u16
         ;;; No error.
         $success
@@ -26,8 +26,6 @@
         (field $product_id u32)
     )
 )
-
-(typename $filter_options_list (array $filter_options))
 
 (typename $parity_type
     (enum u8
@@ -75,15 +73,15 @@
 ;;; A serial port that can be written to and read from.
 (typename $serial_port (handle))
 
-(module $wasi_ephermeral_serial
+(module $wasi_ephemeral_serial
     ;;; Linear memory to be accessed by WASI functions that need it.
     (import "memory" (memory))
 
     ;;; Request a port that matches one of the provided filters.
     (@interface func (export "request_port")
-        (param $filters $filter_options_list)
+        (param $filters (array $filter_options))
 
-        (result $error $serial_errno)
+        (result $error $errno)
         (result $unopened_port $unopened_serial_port)
     )
 
@@ -91,7 +89,7 @@
         (param $unopened_port $unopened_serial_port)
         (param $open_options $open_options)
         
-        (result $error $serial_errno)
+        (result $error $errno)
         (result $port $serial_port)
     )
 
@@ -105,7 +103,7 @@
         ;;; Number of bytes supplied in buffer.
         (param $size (@witx usize))
 
-        (result $error $serial_errno)
+        (result $error $errno)
         ;;; Number of bytes actually written to the serial port.
         (result $bytes_written (@witx usize))
     )
@@ -117,7 +115,7 @@
         (param $buffer (@witx pointer u8))
         (param $buffer_size (@witx usize))
 
-        (result $error $serial_errno)
+        (result $error $errno)
         (result $bytes_read (@witx usize))
     )
 )
